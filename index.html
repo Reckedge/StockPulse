@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="StockPulse - Real-time stock price tracker with custom alerts for NASDAQ, S&P 500, and major tech stocks">
+    <meta name="keywords" content="stock tracker, stock prices, NASDAQ, S&P 500, price alerts, financial dashboard">
+    <meta name="author" content="Joon">
+    <meta property="og:title" content="StockPulse - Stock Price Tracker">
+    <meta property="og:description" content="Real-time stock tracking with custom price alerts">
+    <meta property="og:type" content="website">
+    <title>StockPulse - Real-Time Stock Tracker</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #16161f;
+            --bg-hover: #1e1e2a;
+            --border: #2a2a3a;
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888a0;
+            --text-muted: #555566;
+            --green: #00d4a1;
+            --green-dim: #00d4a133;
+            --red: #ff4d6a;
+            --red-dim: #ff4d6a33;
+            --blue: #4d9fff;
+            --blue-dim: #4d9fff22;
+            --yellow: #ffd84d;
+            --yellow-dim: #ffd84d22;
+            --purple: #a855f7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 46px;
+            height: 46px;
+            background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--bg-primary);
+            box-shadow: 0 4px 20px var(--green-dim);
+        }
+
+        .logo-text {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text span {
+            color: var(--green);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .api-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.demo {
+            background: var(--yellow);
+        }
+
+        .status-dot.error {
+            background: var(--red);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .last-updated {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            padding: 8px 14px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .refresh-btn {
+            padding: 10px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .refresh-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--green);
+        }
+
+        .refresh-btn.loading .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Index Cards */
+        .indices-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 35px;
+        }
+
+        .index-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 26px;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .index-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--blue), var(--purple));
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .index-card:hover {
+            border-color: var(--blue);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .index-card:hover::before {
+            opacity: 1;
+        }
+
+        .index-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .index-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .index-change {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Alerts Section */
+        .alerts-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 35px;
+        }
+
+        .alerts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .alerts-title {
+            font-size: 17px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alerts-title .bell {
+            color: var(--yellow);
+            font-size: 20px;
+        }
+
+        .clear-alerts-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .clear-alerts-btn:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .add-alert-form {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .form-input, .form-select {
+            padding: 11px 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px var(--blue-dim);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-select {
+            cursor: pointer;
+            min-width: 130px;
+        }
+
+        .add-alert-btn {
+            padding: 11px 24px;
+            background: linear-gradient(135deg, var(--green) 0%, #00b88a 100%);
+            border: none;
+            border-radius: 8px;
+            color: var(--bg-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .add-alert-btn:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 24px var(--green-dim);
+        }
+
+        .active-alerts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .alert-tag {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .alert-tag.below {
+            border-color: var(--red-dim);
+            background: var(--red-dim);
+        }
+
+        .alert-tag.above {
+            border-color: var(--green-dim);
+            background: var(--green-dim);
+        }
+
+        .alert-tag .remove {
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            font-size: 14px;
+        }
+
+        .alert-tag .remove:hover {
+            opacity: 1;
+        }
+
+        .no-alerts {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        /* Add Stock Section */
+        .add-stock-section {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .add-stock-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            text-transform: uppercase;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .add-stock-input:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px var(--blue-dim);
+        }
+
+        .add-stock-input::placeholder {
+            text-transform: none;
+            color: var(--text-muted);
+        }
+
+        .add-stock-btn {
+            padding: 12px 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .add-stock-btn:hover {
+            border-color: var(--green);
+            background: var(--bg-hover);
+        }
+
+        /* Stocks Grid */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stock-count {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+        }
+
+        .stock-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+            transition: all 0.25s ease;
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stock-card:hover {
+            border-color: var(--text-muted);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        .stock-card.up {
+            border-left: 4px solid var(--green);
+        }
+
+        .stock-card.down {
+            border-left: 4px solid var(--red);
+        }
+
+        .stock-card .remove-stock {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 28px;
+            height: 28px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .stock-card:hover .remove-stock {
+            opacity: 1;
+        }
+
+        .stock-card .remove-stock:hover {
+            border-color: var(--red);
+            color: var(--red);
+            background: var(--red-dim);
+        }
+
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 18px;
+        }
+
+        .stock-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stock-symbol {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .stock-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stock-logo {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .stock-price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .stock-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 30px;
+            font-weight: 600;
+        }
+
+        .stock-change {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .change-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .change-percent {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .up .change-value, .up .change-percent {
+            color: var(--green);
+        }
+
+        .up .change-percent {
+            background: var(--green-dim);
+        }
+
+        .down .change-value, .down .change-percent {
+            color: var(--red);
+        }
+
+        .down .change-percent {
+            background: var(--red-dim);
+        }
+
+        .stock-chart {
+            margin-top: 18px;
+            height: 55px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            padding: 10px;
+            gap: 3px;
+        }
+
+        .chart-bar {
+            flex: 1;
+            border-radius: 2px;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+
+        .stock-card.up .chart-bar {
+            background: var(--green);
+        }
+
+        .stock-card.down .chart-bar {
+            background: var(--red);
+        }
+
+        .stock-card:hover .chart-bar {
+            opacity: 1;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            padding: 18px 22px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            animation: slideIn 0.3s ease;
+            min-width: 320px;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.alert-triggered {
+            border-color: var(--yellow);
+            background: linear-gradient(135deg, var(--bg-card) 0%, #1f1a10 100%);
+        }
+
+        .toast.error {
+            border-color: var(--red);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-icon {
+            font-size: 22px;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 50px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-text {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .footer-text a {
+            color: var(--blue);
+            text-decoration: none;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        /* Loading State */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top-color: var(--green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .container {
+                padding: 20px;
+            }
+
+            .indices-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .add-alert-form {
+                flex-direction: column;
+            }
+            
+            .form-group {
+                width: 100%;
+            }
+            
+            .form-input, .form-select {
+                width: 100%;
+            }
+
+            .add-alert-btn {
+                width: 100%;
+            }
+
+            .stocks-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader">
+            <div class="loader-spinner"></div>
+            <div class="loader-text">Loading StockPulse...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">📈</div>
+                <div class="logo-text">Stock<span>Pulse</span></div>
+            </div>
+            <div class="header-actions">
+                <div class="api-status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
+                <div class="last-updated" id="lastUpdated">Updated: --:--:--</div>
+                <button class="refresh-btn" id="refreshBtn">
+                    <svg class="refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </header>
+
+        <!-- Market Indices -->
+        <div class="indices-row" id="indicesRow">
+            <div class="index-card">
+                <div class="index-name">NASDAQ Composite</div>
+                <div class="index-value" id="nasdaq-value">--</div>
+                <div class="index-change" id="nasdaq-change">--</div>
+            </div>
+            <div class="index-card">
+                <div class="index-name">S&P 500</div>
+                <div class="index-value" id="sp500-value">--</div>
+                <div class="index-change" id="sp500-change">--</div>
+            </div>
+            <div class="index-card">
+                <div class="index-name">Dow Jones</div>
+                <div class="index-value" id="dow-value">--</div>
+                <div class="index-change" id="dow-change">--</div>
+            </div>
+        </div>
+
+        <!-- Price Alerts -->
+        <div class="alerts-section">
+            <div class="alerts-header">
+                <div class="alerts-title">
+                    <span class="bell">🔔</span>
+                    Price Alerts
+                </div>
+                <button class="clear-alerts-btn" id="clearAlertsBtn">Clear All</button>
+            </div>
+            <div class="add-alert-form">
+                <div class="form-group">
+                    <label>Stock Symbol</label>
+                    <select class="form-select" id="alertStock"></select>
+                </div>
+                <div class="form-group">
+                    <label>Condition</label>
+                    <select class="form-select" id="alertCondition">
+                        <option value="below">Falls below</option>
+                        <option value="above">Rises above</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target Price ($)</label>
+                    <input type="number" class="form-input" id="alertPrice" placeholder="0.00" step="0.01">
+                </div>
+                <button class="add-alert-btn" id="addAlertBtn">+ Add Alert</button>
+            </div>
+            <div class="active-alerts" id="activeAlerts">
+                <span class="no-alerts">No active alerts</span>
+            </div>
+        </div>
+
+        <!-- Add Stock -->
+        <div class="add-stock-section">
+            <input type="text" class="add-stock-input" id="addStockInput" placeholder="Enter stock symbol (e.g., AAPL)" maxlength="5">
+            <button class="add-stock-btn" id="addStockBtn">
+                <span>+</span> Add to Watchlist
+            </button>
+        </div>
+
+        <!-- Stocks Grid -->
+        <div class="section-header">
+            <h2 class="section-title">
+                Watchlist
+                <span class="stock-count" id="stockCount">(0 stocks)</span>
+            </h2>
+        </div>
+        <div class="stocks-grid" id="stocksGrid"></div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-text">
+                Built by <a href="https://github.com/YOUR_USERNAME" target="_blank">Joon</a> • Data updates every 30 seconds
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/YOUR_USERNAME/stockpulse" target="_blank">GitHub</a>
+                <a href="#" id="resetData">Reset Data</a>
+            </div>
+        </footer>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ============================================
+        // Configuration
+        // ============================================
+        const CONFIG = {
+            // Finnhub API - Get free key at https://finnhub.io/
+            // Replace with your API key for live data
+            API_KEY: 'YOUR_API_KEY_HERE',
+            API_BASE: 'https://finnhub.io/api/v1',
+            
+            // Update interval (ms)
+            UPDATE_INTERVAL: 30000,
+            
+            // Default watchlist
+            DEFAULT_STOCKS: ['NVDA', 'PLTR', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AMD', 'NFLX'],
+            
+            // Storage keys
+            STORAGE_KEYS: {
+                WATCHLIST: 'stockpulse_watchlist',
+                ALERTS: 'stockpulse_alerts',
+                PRICES: 'stockpulse_prices'
+            }
+        };
+
+        // ============================================
+        // State
+        // ============================================
+        let state = {
+            watchlist: [],
+            alerts: [],
+            prices: {},
+            previousPrices: {},
+            stockInfo: {},
+            isLiveData: false,
+            lastUpdate: null
+        };
+
+        // Stock metadata (fallback)
+        const STOCK_INFO = {
+            NVDA: { name: 'NVIDIA Corporation' },
+            PLTR: { name: 'Palantir Technologies' },
+            AAPL: { name: 'Apple Inc.' },
+            MSFT: { name: 'Microsoft Corporation' },
+            GOOGL: { name: 'Alphabet Inc.' },
+            AMZN: { name: 'Amazon.com Inc.' },
+            META: { name: 'Meta Platforms Inc.' },
+            TSLA: { name: 'Tesla Inc.' },
+            AMD: { name: 'Advanced Micro Devices' },
+            NFLX: { name: 'Netflix Inc.' },
+            CRM: { name: 'Salesforce Inc.' },
+            INTC: { name: 'Intel Corporation' },
+            PYPL: { name: 'PayPal Holdings' },
+            UBER: { name: 'Uber Technologies' },
+            COIN: { name: 'Coinbase Global' },
+            SQ: { name: 'Block Inc.' },
+            SHOP: { name: 'Shopify Inc.' },
+            SNOW: { name: 'Snowflake Inc.' },
+            NET: { name: 'Cloudflare Inc.' },
+            CRWD: { name: 'CrowdStrike Holdings' }
+        };
+
+        // Demo prices (used when API key not set)
+        const DEMO_PRICES = {
+            NVDA: { c: 875.28, pc: 868.50 },
+            PLTR: { c: 24.56, pc: 24.12 },
+            AAPL: { c: 178.42, pc: 179.80 },
+            MSFT: { c: 378.91, pc: 375.20 },
+            GOOGL: { c: 141.23, pc: 139.50 },
+            AMZN: { c: 178.65, pc: 176.90 },
+            META: { c: 505.34, pc: 498.70 },
+            TSLA: { c: 248.12, pc: 251.30 },
+            AMD: { c: 162.45, pc: 159.80 },
+            NFLX: { c: 628.90, pc: 622.40 },
+            CRM: { c: 272.15, pc: 268.90 },
+            INTC: { c: 43.21, pc: 42.85 },
+            PYPL: { c: 62.45, pc: 61.80 },
+            UBER: { c: 78.32, pc: 77.50 },
+            COIN: { c: 205.67, pc: 198.40 },
+            SQ: { c: 72.89, pc: 71.20 },
+            SHOP: { c: 68.45, pc: 67.90 },
+            SNOW: { c: 158.90, pc: 156.20 },
+            NET: { c: 92.34, pc: 90.80 },
+            CRWD: { c: 312.56, pc: 308.90 }
+        };
+
+        const DEMO_INDICES = {
+            nasdaq: { value: 16742.39, prevClose: 16650.20 },
+            sp500: { value: 5021.84, prevClose: 4998.50 },
+            dow: { value: 38654.42, prevClose: 38520.10 }
+        };
+
+        // ============================================
+        // Storage Functions
+        // ============================================
+        function saveToStorage(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {
+                console.warn('localStorage not available');
+            }
+        }
+
+        function loadFromStorage(key, defaultValue) {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultValue;
+            } catch (e) {
+                return defaultValue;
+            }
+        }
+
+        function initializeState() {
+            state.watchlist = loadFromStorage(CONFIG.STORAGE_KEYS.WATCHLIST, CONFIG.DEFAULT_STOCKS);
+            state.alerts = loadFromStorage(CONFIG.STORAGE_KEYS.ALERTS, []);
+            state.prices = loadFromStorage(CONFIG.STORAGE_KEYS.PRICES, {});
+        }
+
+        // ============================================
+        // API Functions
+        // ============================================
+        async function fetchStockPrice(symbol) {
+            if (CONFIG.API_KEY === 'YOUR_API_KEY_HERE') {
+                return null; // Use demo data
+            }
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE}/quote?symbol=${symbol}&token=${CONFIG.API_KEY}`
+                );
+                if (!response.ok) throw new Error('API error');
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${symbol}:`, error);
+                return null;
+            }
+        }
+
+        async function fetchAllPrices() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('loading');
+
+            state.previousPrices = { ...state.prices };
+
+            if (CONFIG.API_KEY === 'YOUR_API_KEY_HERE') {
+                // Demo mode - simulate price changes
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                state.watchlist.forEach(symbol => {
+                    if (DEMO_PRICES[symbol]) {
+                        const base = DEMO_PRICES[symbol];
+                        const change = (Math.random() - 0.48) * 3;
+                        state.prices[symbol] = {
+                            c: base.c + change,
+                            pc: base.pc,
+                            d: (base.c + change) - base.pc,
+                            dp: (((base.c + change) - base.pc) / base.pc) * 100
+                        };
+                    }
+                });
+
+                // Update indices with small random changes
+                DEMO_INDICES.nasdaq.value += (Math.random() - 0.48) * 20;
+                DEMO_INDICES.sp500.value += (Math.random() - 0.48) * 8;
+                DEMO_INDICES.dow.value += (Math.random() - 0.48) * 40;
+
+                state.isLiveData = false;
+            } else {
+                // Live API mode
+                const promises = state.watchlist.map(async symbol => {
+                    const data = await fetchStockPrice(symbol);
+                    if (data && data.c) {
+                        state.prices[symbol] = data;
+                    }
+                });
+
+                await Promise.all(promises);
+                state.isLiveData = true;
+            }
+
+            state.lastUpdate = new Date();
+            saveToStorage(CONFIG.STORAGE_KEYS.PRICES, state.prices);
+            
+            btn.classList.remove('loading');
+            updateUI();
+            checkAlerts();
+        }
+
+        // ============================================
+        // UI Functions
+        // ============================================
+        function formatCurrency(value) {
+            if (value === undefined || value === null) return '--';
+            return value.toLocaleString('en-US', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            });
+        }
+
+        function formatChange(current, previous) {
+            if (!current || !previous) {
+                return { value: '--', percent: '--', isUp: true };
+            }
+            const change = current - previous;
+            const percentChange = ((change / previous) * 100);
+            const sign = change >= 0 ? '+' : '';
+            return {
+                value: `${sign}${formatCurrency(change)}`,
+                percent: `${sign}${percentChange.toFixed(2)}%`,
+                isUp: change >= 0
+            };
+        }
+
+        function generateChartData() {
+            return Array.from({ length: 20 }, () => Math.random() * 80 + 20);
+        }
+
+        function updateStatus() {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+
+            if (CONFIG.API_KEY === 'YOUR_API_KEY_HERE') {
+                dot.className = 'status-dot demo';
+                text.textContent = 'Demo Mode';
+            } else if (state.isLiveData) {
+                dot.className = 'status-dot';
+                text.textContent = 'Live';
+            } else {
+                dot.className = 'status-dot error';
+                text.textContent = 'Error';
+            }
+        }
+
+        function updateTimestamp() {
+            if (state.lastUpdate) {
+                const time = state.lastUpdate.toLocaleTimeString('en-US', { hour12: false });
+                document.getElementById('lastUpdated').textContent = `Updated: ${time}`;
+            }
+        }
+
+        function renderIndices() {
+            const indices = [
+                { id: 'nasdaq', data: DEMO_INDICES.nasdaq },
+                { id: 'sp500', data: DEMO_INDICES.sp500 },
+                { id: 'dow', data: DEMO_INDICES.dow }
+            ];
+
+            indices.forEach(index => {
+                const change = formatChange(index.data.value, index.data.prevClose);
+                document.getElementById(`${index.id}-value`).textContent = formatCurrency(index.data.value);
+                const changeEl = document.getElementById(`${index.id}-change`);
+                changeEl.textContent = `${change.value} (${change.percent})`;
+                changeEl.style.color = change.isUp ? 'var(--green)' : 'var(--red)';
+            });
+        }
+
+        function renderStocks() {
+            const grid = document.getElementById('stocksGrid');
+            grid.innerHTML = '';
+
+            state.watchlist.forEach(symbol => {
+                const priceData = state.prices[symbol];
+                const info = STOCK_INFO[symbol] || { name: symbol };
+                
+                const current = priceData?.c;
+                const previous = priceData?.pc;
+                const change = formatChange(current, previous);
+                const chartData = generateChartData();
+
+                const card = document.createElement('div');
+                card.className = `stock-card ${change.isUp ? 'up' : 'down'}`;
+                card.innerHTML = `
+                    <button class="remove-stock" onclick="removeStock('${symbol}')" title="Remove from watchlist">✕</button>
+                    <div class="stock-header">
+                        <div class="stock-info">
+                            <div class="stock-symbol">${symbol}</div>
+                            <div class="stock-name">${info.name}</div>
+                        </div>
+                        <div class="stock-logo">${symbol.slice(0, 2)}</div>
+                    </div>
+                    <div class="stock-price-row">
+                        <div class="stock-price">$${formatCurrency(current)}</div>
+                        <div class="stock-change">
+                            <div class="change-value">${change.value}</div>
+                            <div class="change-percent">${change.percent}</div>
+                        </div>
+                    </div>
+                    <div class="stock-chart">
+                        ${chartData.map(h => `<div class="chart-bar" style="height: ${h}%"></div>`).join('')}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            document.getElementById('stockCount').textContent = `(${state.watchlist.length} stocks)`;
+            updateAlertStockDropdown();
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('activeAlerts');
+            
+            if (state.alerts.length === 0) {
+                container.innerHTML = '<span class="no-alerts">No active alerts</span>';
+                return;
+            }
+
+            container.innerHTML = state.alerts.map((alert, index) => `
+                <div class="alert-tag ${alert.condition}">
+                    <span>${alert.symbol} ${alert.condition === 'below' ? '↓' : '↑'} $${formatCurrency(alert.price)}</span>
+                    <span class="remove" onclick="removeAlert(${index})">✕</span>
+                </div>
+            `).join('');
+        }
+
+        function updateAlertStockDropdown() {
+            const select = document.getElementById('alertStock');
+            select.innerHTML = state.watchlist.map(symbol => 
+                `<option value="${symbol}">${symbol}</option>`
+            ).join('');
+        }
+
+        function updateUI() {
+            updateStatus();
+            updateTimestamp();
+            renderIndices();
+            renderStocks();
+            renderAlerts();
+        }
+
+        // ============================================
+        // Stock Management
+        // ============================================
+        function addStock(symbol) {
+            symbol = symbol.toUpperCase().trim();
+            
+            if (!symbol) {
+                showToast('Invalid Symbol', 'Please enter a stock symbol', '⚠️');
+                return;
+            }
+
+            if (symbol.length > 5) {
+                showToast('Invalid Symbol', 'Symbol must be 5 characters or less', '⚠️');
+                return;
+            }
+
+            if (state.watchlist.includes(symbol)) {
+                showToast('Already Added', `${symbol} is already in your watchlist`, 'ℹ️');
+                return;
+            }
+
+            state.watchlist.push(symbol);
+            saveToStorage(CONFIG.STORAGE_KEYS.WATCHLIST, state.watchlist);
+            
+            // Initialize with demo price if available
+            if (DEMO_PRICES[symbol]) {
+                state.prices[symbol] = {
+                    c: DEMO_PRICES[symbol].c,
+                    pc: DEMO_PRICES[symbol].pc
+                };
+            }
+
+            renderStocks();
+            showToast('Stock Added', `${symbol} added to watchlist`, '✓');
+            document.getElementById('addStockInput').value = '';
+
+            // Fetch real price if API available
+            if (CONFIG.API_KEY !== 'YOUR_API_KEY_HERE') {
+                fetchStockPrice(symbol).then(data => {
+                    if (data?.c) {
+                        state.prices[symbol] = data;
+                        renderStocks();
+                    }
+                });
+            }
+        }
+
+        function removeStock(symbol) {
+            state.watchlist = state.watchlist.filter(s => s !== symbol);
+            delete state.prices[symbol];
+            
+            // Remove alerts for this stock
+            state.alerts = state.alerts.filter(a => a.symbol !== symbol);
+            
+            saveToStorage(CONFIG.STORAGE_KEYS.WATCHLIST, state.watchlist);
+            saveToStorage(CONFIG.STORAGE_KEYS.ALERTS, state.alerts);
+            
+            renderStocks();
+            renderAlerts();
+            showToast('Stock Removed', `${symbol} removed from watchlist`, '✓');
+        }
+
+        // ============================================
+        // Alerts
+        // ============================================
+        function addAlert() {
+            const symbol = document.getElementById('alertStock').value;
+            const condition = document.getElementById('alertCondition').value;
+            const price = parseFloat(document.getElementById('alertPrice').value);
+
+            if (!symbol) {
+                showToast('Select Stock', 'Please select a stock for the alert', '⚠️');
+                return;
+            }
+
+            if (!price || price <= 0) {
+                showToast('Invalid Price', 'Please enter a valid price', '⚠️');
+                return;
+            }
+
+            state.alerts.push({ symbol, condition, price, id: Date.now() });
+            saveToStorage(CONFIG.STORAGE_KEYS.ALERTS, state.alerts);
+            
+            renderAlerts();
+            document.getElementById('alertPrice').value = '';
+            showToast('Alert Created', `${symbol} ${condition} $${formatCurrency(price)}`, '🔔');
+        }
+
+        function removeAlert(index) {
+            state.alerts.splice(index, 1);
+            saveToStorage(CONFIG.STORAGE_KEYS.ALERTS, state.alerts);
+            renderAlerts();
+        }
+
+        function clearAllAlerts() {
+            state.alerts = [];
+            saveToStorage(CONFIG.STORAGE_KEYS.ALERTS, state.alerts);
+            renderAlerts();
+            showToast('Alerts Cleared', 'All alerts have been removed', '✓');
+        }
+
+        function checkAlerts() {
+            const triggeredAlerts = [];
+
+            state.alerts.forEach((alert, index) => {
+                const priceData = state.prices[alert.symbol];
+                if (!priceData?.c) return;
+
+                const currentPrice = priceData.c;
+                let triggered = false;
+
+                if (alert.condition === 'below' && currentPrice <= alert.price) {
+                    triggered = true;
+                } else if (alert.condition === 'above' && currentPrice >= alert.price) {
+                    triggered = true;
+                }
+
+                if (triggered) {
+                    triggeredAlerts.push({ ...alert, index, currentPrice });
+                }
+            });
+
+            // Process triggered alerts
+            triggeredAlerts.forEach(alert => {
+                showToast(
+                    '🚨 Price Alert!',
+                    `${alert.symbol} is now $${formatCurrency(alert.currentPrice)}`,
+                    '🔔',
+                    true
+                );
+                playAlertSound();
+            });
+
+            // Remove triggered alerts
+            if (triggeredAlerts.length > 0) {
+                const triggeredIds = triggeredAlerts.map(a => a.id);
+                state.alerts = state.alerts.filter(a => !triggeredIds.includes(a.id));
+                saveToStorage(CONFIG.STORAGE_KEYS.ALERTS, state.alerts);
+                renderAlerts();
+            }
+        }
+
+        function playAlertSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+                console.warn('Audio not supported');
+            }
+        }
+
+        // ============================================
+        // Toast Notifications
+        // ============================================
+        function showToast(title, message, icon = 'ℹ️', isAlert = false) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${isAlert ? 'alert-triggered' : ''}`;
+            toast.innerHTML = `
+                <div class="toast-icon">${icon}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ============================================
+        // Reset
+        // ============================================
+        function resetAllData() {
+            if (confirm('Reset all data? This will clear your watchlist and alerts.')) {
+                localStorage.removeItem(CONFIG.STORAGE_KEYS.WATCHLIST);
+                localStorage.removeItem(CONFIG.STORAGE_KEYS.ALERTS);
+                localStorage.removeItem(CONFIG.STORAGE_KEYS.PRICES);
+                location.reload();
+            }
+        }
+
+        // ============================================
+        // Event Listeners
+        // ============================================
+        document.getElementById('refreshBtn').addEventListener('click', fetchAllPrices);
+        document.getElementById('addAlertBtn').addEventListener('click', addAlert);
+        document.getElementById('clearAlertsBtn').addEventListener('click', clearAllAlerts);
+        document.getElementById('resetData').addEventListener('click', (e) => {
+            e.preventDefault();
+            resetAllData();
+        });
+
+        document.getElementById('addStockBtn').addEventListener('click', () => {
+            addStock(document.getElementById('addStockInput').value);
+        });
+
+        document.getElementById('addStockInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addStock(e.target.value);
+            }
+        });
+
+        document.getElementById('alertPrice').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addAlert();
+            }
+        });
+
+        // ============================================
+        // Initialize
+        // ============================================
+        async function init() {
+            initializeState();
+            
+            // Initial render with cached data
+            updateUI();
+            
+            // Fetch fresh data
+            await fetchAllPrices();
+            
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            
+            // Start auto-refresh
+            setInterval(fetchAllPrices, CONFIG.UPDATE_INTERVAL);
+        }
+
+        // Start app
+        init();
+    </script>
+</body>
+</html>
