@@ -29,7 +29,7 @@ A real-time stock price tracker with custom alerts, built with vanilla JavaScrip
 4. Replace with your actual API key
 5. Open in browser - you now have live stock data
 
-## Live Demo
+## Live DEMO (not real prices)
 
 [https://reckedge.github.io/StockPulse](https://reckedge.github.io/StockPulse)
 
